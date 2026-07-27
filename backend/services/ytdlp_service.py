@@ -129,7 +129,14 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "geo_bypass": True,
+        "nocheckcertificate": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "mweb", "web"]
+            }
+        },
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     }
 
     loop = asyncio.get_running_loop()
@@ -143,8 +150,11 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
             raise ValueError("This video is private or password protected.")
         elif "Video unavailable" in err_msg:
             raise ValueError("Video is unavailable or has been deleted.")
+        elif "Sign in to confirm" in err_msg or "bot" in err_msg.lower():
+            raise ValueError("YouTube bot detection blocked this server IP. (Note: Cloud datacenter IPs like Vercel/AWS often require OAuth cookies for protected YouTube videos; standard sites and residential hosts work directly).")
         else:
-            raise ValueError(f"Failed to analyze video URL: {err_msg.split(';')[0]}")
+            clean_err = re.sub(r'ERROR:\s*\[[^\]]+\]\s*[^:]+:\s*', '', err_msg.split(';')[0]).strip()
+            raise ValueError(f"Analysis failed: {clean_err or err_msg}")
     except Exception as e:
         raise ValueError(f"An unexpected error occurred during URL analysis: {str(e)}")
 
@@ -269,6 +279,13 @@ def build_ytdlp_download_opts(task_id: str, request: DownloadRequest, progress_c
         "quiet": True,
         "no_warnings": True,
         "nopagereaders": True,
+        "geo_bypass": True,
+        "nocheckcertificate": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "mweb", "web"]
+            }
+        },
     }
 
     if request.format_type == "Video Only":
