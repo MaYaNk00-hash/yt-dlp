@@ -151,6 +151,8 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
             raise ValueError("Video is unavailable or has been deleted.")
         elif "Sign in to confirm" in err_msg or "bot" in err_msg.lower():
             raise ValueError("YouTube bot detection blocked this server IP. (Note: Cloud datacenter IPs like Vercel/AWS often require OAuth cookies for protected YouTube videos; standard sites and residential hosts work directly).")
+        elif "403" in err_msg or "Forbidden" in err_msg:
+            raise ValueError("HTTP 403 Forbidden: This mature or shielded website employs strict Cloudflare WAF protection or requires active login cookies. Running locally with browser cookie exporting solves this.")
         else:
             clean_err = re.sub(r'ERROR:\s*\[[^\]]+\]\s*[^:]+:\s*', '', err_msg.split(';')[0]).strip()
             raise ValueError(f"Analysis failed: {clean_err or err_msg}")
@@ -298,8 +300,29 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
     )
 
 def _extract_info_sync(opts: Dict[str, Any], target_url: str) -> Dict[str, Any]:
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        return ydl.extract_info(target_url, download=False)
+    opts_copy = dict(opts)
+    opts_copy["age_limit"] = 18
+    try:
+        with yt_dlp.YoutubeDL(opts_copy) as ydl:
+            return ydl.extract_info(target_url, download=False)
+    except Exception as first_error:
+        err_str = str(first_error)
+        # Automatically recover from HTTP 403 Forbidden / Cloudflare blocks on social & mature platforms via Chrome browser impersonation
+        if "403" in err_str or "Forbidden" in err_str or "Unable to download webpage" in err_str or "blocked" in err_str.lower():
+            fallback_opts = dict(opts_copy)
+            fallback_opts["impersonate"] = "chrome"
+            fallback_opts["http_headers"] = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.5",
+                "Sec-Fetch-Mode": "navigate",
+            }
+            try:
+                with yt_dlp.YoutubeDL(fallback_opts) as ydl:
+                    return ydl.extract_info(target_url, download=False)
+            except Exception:
+                raise first_error
+        raise first_error
 
 def build_ytdlp_download_opts(task_id: str, request: DownloadRequest, progress_callback: Any) -> Dict[str, Any]:
     """Generate precise yt-dlp configurations for format extraction and FFmpeg automatic merging."""
@@ -314,7 +337,17 @@ def build_ytdlp_download_opts(task_id: str, request: DownloadRequest, progress_c
         "nopagereaders": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
+        "age_limit": 18,
     }
+
+    # For non-YouTube platforms (e.g. XHamster, Twitter/X, Instagram, Reddit), enable Chrome impersonation & standard headers to prevent 403 blocks during downloading
+    if "youtube.com" not in request.url.lower() and "youtu.be" not in request.url.lower():
+        opts["impersonate"] = "chrome"
+        opts["http_headers"] = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
 
     if request.format_type == "Video Only":
         opts["format"] = f"{request.format_id}+bestaudio/best"
