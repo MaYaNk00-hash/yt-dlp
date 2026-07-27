@@ -85,13 +85,19 @@ def parse_format_item(fmt: Dict[str, Any], duration_seconds: Optional[int], targ
 
     ext = str(fmt.get("ext", "unknown")).lower()
     
-    # Calculate filesize
+    # Robust multi-tier file size estimation to guarantee every format shows an exact size
     filesize = fmt.get("filesize") or fmt.get("filesize_approx")
-    if not filesize and fmt.get("tbr") and duration_seconds:
-        # Estimate filesize from total bitrate (tbr in kbps) and duration
-        filesize = int((float(fmt["tbr"]) * 1024 / 8) * duration_seconds)
+    if not filesize and duration_seconds:
+        tbr = fmt.get("tbr")
+        if not tbr:
+            vbr = float(fmt.get("vbr") or 0)
+            abr = float(fmt.get("abr") or 0)
+            if vbr + abr > 0:
+                tbr = vbr + abr
+        if tbr and float(tbr) > 0:
+            filesize = int((float(tbr) * 1024 / 8.0) * duration_seconds)
     
-    filesize_str = format_bytes(filesize)
+    filesize_str = format_bytes(int(filesize)) if filesize and filesize > 0 else "N/A"
     fps = fmt.get("fps")
 
     note = fmt.get("format_note") or ""
@@ -202,25 +208,34 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
     best_acodec = best_audio.acodec if best_audio else "bestaudio"
     audio_size_bytes = (best_audio.filesize_bytes or 0) if best_audio else 0
 
+    # Collect all video streams and sort STRICTLY by resolution height and FPS (so 4K/1080p always beat 360p pre-merged)
+    video_streams = [f for f in parsed_formats if f.format_type in ("Video Only", "Video + Audio")]
+    video_streams.sort(key=lambda x: (-get_res_height(x), -(x.fps or 0), -(x.filesize_bytes or 0)))
+
+    # Calculate exact max combined size of #1 best video + #1 best studio audio
+    best_video = video_streams[0] if video_streams else None
+    max_size_bytes = 0
+    if best_video and best_video.filesize_bytes:
+        max_size_bytes += best_video.filesize_bytes
+        if best_video.format_type == "Video Only" and audio_size_bytes > 0:
+            max_size_bytes += audio_size_bytes
+    max_size_str = format_bytes(max_size_bytes) if max_size_bytes > 0 else "N/A"
+
     # 1. ALWAYS inject #1 Master Option: Maximum Available (Best Video + Best Audio)
     max_cmd = f'yt-dlp -f "bestvideo+bestaudio/best" --merge-output-format mp4 "{webpage_url}"'
     top_combined.append(FormatItem(
         format_id="bestvideo+bestaudio/best",
         resolution="Maximum Quality (Best Video + Best Audio)",
         ext="mp4",
-        filesize_str="Auto Max",
-        filesize_bytes=None,
-        fps=None,
-        vcodec="bestvideo",
+        filesize_str=max_size_str,
+        filesize_bytes=max_size_bytes if max_size_bytes > 0 else None,
+        fps=best_video.fps if best_video else None,
+        vcodec=best_video.vcodec if best_video else "bestvideo",
         acodec=best_acodec,
         format_type="Top 5 Combined",
         note="Master Quality: Merges #1 highest video stream with #1 studio audio",
         command=max_cmd
     ))
-
-    # Collect all video streams and sort STRICTLY by resolution height and FPS (so 4K/1080p always beat 360p pre-merged)
-    video_streams = [f for f in parsed_formats if f.format_type in ("Video Only", "Video + Audio")]
-    video_streams.sort(key=lambda x: (-get_res_height(x), -(x.fps or 0), -(x.filesize_bytes or 0)))
 
     seen_res = set()
     for v in video_streams:
