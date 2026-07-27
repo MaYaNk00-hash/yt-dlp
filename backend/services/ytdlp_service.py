@@ -128,12 +128,11 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
         "dump_single_json": True,
         "quiet": True,
         "no_warnings": True,
-        "skip_download": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "mweb", "web"]
+                "player_client": ["web", "tv", "android", "ios"]
             }
         },
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -278,12 +277,11 @@ def build_ytdlp_download_opts(task_id: str, request: DownloadRequest, progress_c
         "progress_hooks": [progress_callback],
         "quiet": True,
         "no_warnings": True,
-        "nopagereaders": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "mweb", "web"]
+                "player_client": ["web", "tv", "android", "ios"]
             }
         },
     }
