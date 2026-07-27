@@ -2,8 +2,13 @@ import os
 import shutil
 from pathlib import Path
 
-# Project directory paths
-BASE_DIR = Path(__file__).parent.parent.resolve()
+# Resilient repository root discovery for serverless cloud containers (Vercel / AWS Lambda site-packages wheels)
+if (Path(os.getcwd()) / "frontend").exists():
+    BASE_DIR = Path(os.getcwd()).resolve()
+elif (Path("/var/task") / "frontend").exists():
+    BASE_DIR = Path("/var/task").resolve()
+else:
+    BASE_DIR = Path(__file__).parent.parent.resolve()
 
 # In Vercel / serverless deployments or read-only filesystems, safely route downloads to ephemeral /tmp
 if os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or not os.access(BASE_DIR, os.W_OK):
