@@ -128,6 +128,7 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
         "dump_single_json": True,
         "quiet": True,
         "no_warnings": True,
+        "skip_download": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
         "extractor_args": {
@@ -277,6 +278,7 @@ def build_ytdlp_download_opts(task_id: str, request: DownloadRequest, progress_c
         "progress_hooks": [progress_callback],
         "quiet": True,
         "no_warnings": True,
+        "nopagereaders": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
         "extractor_args": {
