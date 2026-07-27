@@ -23,5 +23,3 @@ include = ["backend*"]
 [tool.setuptools.package-data]
 "*" = ["*.html", "*.css", "*.js", "*.png", "*.ico", "*"]
 
-[tool.vercel]
-entrypoint = "backend.main:app"

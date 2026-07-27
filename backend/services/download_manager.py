@@ -3,7 +3,7 @@ import os
 import re
 import uuid
 import time
-from typing import Dict, Set
+from typing import Dict, Set, Any
 import yt_dlp
 
 from backend.models import DownloadRequest, DownloadProgress
