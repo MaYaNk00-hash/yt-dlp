@@ -4,7 +4,13 @@ from pathlib import Path
 
 # Project directory paths
 BASE_DIR = Path(__file__).parent.parent.resolve()
-DOWNLOADS_DIR = BASE_DIR / "downloads"
+
+# In Vercel / serverless deployments (read-only root filesystem), safely route downloads to ephemeral /tmp
+if os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+    DOWNLOADS_DIR = Path("/tmp/downloads")
+else:
+    DOWNLOADS_DIR = BASE_DIR / "downloads"
+
 FRONTEND_DIR = BASE_DIR / "frontend"
 
 # Ensure downloads directory exists
