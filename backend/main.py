@@ -1,7 +1,17 @@
 import os
+import sys
+from pathlib import Path
+
+# GUARANTEE project repository root is in sys.path so AWS Lambda / Vercel Serverless can import backend modules
+project_root = Path(__file__).parent.parent.resolve()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+if os.getcwd() not in sys.path:
+    sys.path.insert(0, os.getcwd())
+
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import APP_TITLE, APP_DESCRIPTION, APP_VERSION, FRONTEND_DIR, DOWNLOADS_DIR
@@ -77,6 +87,12 @@ async def fetch_downloaded_file(task_id: str, filename: str):
         filename=filename,
         media_type="application/octet-stream"
     )
+
+@app.get("/favicon.ico", include_in_schema=False)
+@app.get("/favicon.png", include_in_schema=False)
+async def ignore_favicon():
+    """Silently handle browser favicon requests with 204 No Content to prevent log errors."""
+    return Response(status_code=204)
 
 # Ensure downloads folder exists on server startup without throwing errors in read-only containers
 try:
