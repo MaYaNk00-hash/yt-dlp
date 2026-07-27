@@ -100,8 +100,8 @@ try:
 except Exception as e:
     print(f"Notice: Unable to initialize downloads directory during container startup: {e}")
 
-# In Vercel / serverless cloud environments, Vercel Edge CDN handles static delivery. Only mount StaticFiles for local Uvicorn executions.
-if not os.environ.get("VERCEL") and not os.environ.get("AWS_LAMBDA_FUNCTION_NAME") and FRONTEND_DIR.exists():
+# Safely mount static interface files and serve web studio across all environments (Local Uvicorn + Cloud Serverless)
+if FRONTEND_DIR.exists():
     css_dir = FRONTEND_DIR / "css"
     js_dir = FRONTEND_DIR / "js"
     if css_dir.exists():
@@ -110,5 +110,6 @@ if not os.environ.get("VERCEL") and not os.environ.get("AWS_LAMBDA_FUNCTION_NAME
         app.mount("/js", StaticFiles(directory=str(js_dir)), name="js")
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
 else:
-    print(f"Notice: Running in cloud serverless mode or static folder absent. API backend ready at /api.")
+    print(f"Notice: Static frontend directory not found at {FRONTEND_DIR}. Running in pure API mode.")
+
 
