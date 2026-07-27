@@ -185,33 +185,54 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
             parsed_formats.append(item)
             seen_ids.add(fid)
 
-    # Sort formats cleanly: Video+Audio first, then Video Only (by resolution/filesize), then Audio Only
-    def sort_key(x: FormatItem):
-        type_priority = {"Video + Audio": 0, "Video Only": 1, "Audio Only": 2}.get(x.format_type, 3)
-        res_val = 0
+    # Helper to determine resolution height for sorting
+    def get_res_height(x: FormatItem) -> int:
+        if x.format_type == "Audio Only":
+            return 0
         match = re.search(r"(\d+)p", x.resolution)
-        if match:
-            res_val = int(match.group(1))
-        size_val = x.filesize_bytes or 0
-        return (type_priority, -res_val, -size_val)
+        return int(match.group(1)) if match else 0
 
-    parsed_formats.sort(key=sort_key)
+    # Sort raw formats cleanly: by type, then resolution height descending, then FPS, then bitrate
+    parsed_formats.sort(key=lambda x: (
+        0 if x.format_type == "Video + Audio" else (1 if x.format_type == "Video Only" else 2),
+        -get_res_height(x),
+        -(x.fps or 0),
+        -(x.filesize_bytes or 0)
+    ))
 
     # Construct Top 5 High Quality Combined Video + Audio options
     top_combined: List[FormatItem] = []
     audio_only = [f for f in parsed_formats if f.format_type == "Audio Only"]
-    best_audio = audio_only[0] if audio_only else None
+    best_audio = sorted(audio_only, key=lambda a: (a.filesize_bytes or 0), reverse=True)[0] if audio_only else None
     best_audio_id = best_audio.format_id if best_audio else "bestaudio/best"
     best_acodec = best_audio.acodec if best_audio else "bestaudio"
     audio_size_bytes = (best_audio.filesize_bytes or 0) if best_audio else 0
 
-    # Collect top unique visual qualities (from Video Only or pre-merged tracks)
+    # 1. ALWAYS inject #1 Master Option: Maximum Available (Best Video + Best Audio)
+    max_cmd = f'yt-dlp -f "bestvideo+bestaudio/best" --merge-output-format mp4 "{webpage_url}"'
+    top_combined.append(FormatItem(
+        format_id="bestvideo+bestaudio/best",
+        resolution="Maximum Quality (Best Video + Best Audio)",
+        ext="mp4",
+        filesize_str="Auto Max",
+        filesize_bytes=None,
+        fps=None,
+        vcodec="bestvideo",
+        acodec=best_acodec,
+        format_type="Top 5 Combined",
+        note="Master Quality: Merges #1 highest video stream with #1 studio audio",
+        command=max_cmd
+    ))
+
+    # Collect all video streams and sort STRICTLY by resolution height and FPS (so 4K/1080p always beat 360p pre-merged)
     video_streams = [f for f in parsed_formats if f.format_type in ("Video Only", "Video + Audio")]
+    video_streams.sort(key=lambda x: (-get_res_height(x), -(x.fps or 0), -(x.filesize_bytes or 0)))
+
     seen_res = set()
     for v in video_streams:
         if len(top_combined) >= 5:
             break
-        # Differentiate by resolution + video codec so users get AV1/VP9/H264 variations
+        # Group by resolution + codec so users get distinct high definition tiers (e.g., 2160p, 1080p, 720p)
         res_key = f"{v.resolution}_{v.vcodec}"
         if res_key in seen_res:
             continue
@@ -222,6 +243,7 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
             comb_size_bytes = (v.filesize_bytes or 0) + audio_size_bytes
             comb_size_str = format_bytes(comb_size_bytes) if comb_size_bytes > 0 else "N/A"
             comb_cmd = f'yt-dlp -f "{comb_id}" --merge-output-format mp4 "{webpage_url}"'
+            audio_note = f" ({best_audio.note})" if best_audio and best_audio.note else ""
             top_combined.append(FormatItem(
                 format_id=comb_id,
                 resolution=v.resolution,
@@ -232,7 +254,7 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
                 vcodec=v.vcodec,
                 acodec=best_acodec,
                 format_type="Top 5 Combined",
-                note=f"Merged with Audio ({best_audio_id})",
+                note=f"Merged with Best Audio{audio_note} • Track {v.format_id}+{best_audio_id}",
                 command=comb_cmd
             ))
         else:
