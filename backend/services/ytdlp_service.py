@@ -40,9 +40,8 @@ def format_bytes(size_bytes: Optional[int]) -> str:
 
 def parse_format_item(fmt: Dict[str, Any], duration_seconds: Optional[int], target_url: str = "") -> Optional[FormatItem]:
     """Parse raw yt-dlp format dictionary into structured FormatItem with CLI command."""
-    format_id = fmt.get("format_id")
-    if not format_id:
-        return None
+    format_id = fmt.get("format_id") or "best"
+
 
     vcodec = str(fmt.get("vcodec", "none")).strip()
     acodec = str(fmt.get("acodec", "none")).strip()
@@ -172,7 +171,10 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
     uploader = info.get("uploader") or info.get("channel") or info.get("uploader_id") or "Unknown Creator"
     webpage_url = info.get("webpage_url", url)
 
-    raw_formats = info.get("formats", [])
+    raw_formats = info.get("formats")
+    if not raw_formats or not isinstance(raw_formats, list):
+        # For single-stream websites (Instagram, TikTok, Twitter/X, Reddit clips, SoundCloud, Vimeo)
+        raw_formats = [info]
     parsed_formats: List[FormatItem] = []
     seen_ids = set()
 

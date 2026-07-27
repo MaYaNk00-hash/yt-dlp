@@ -121,3 +121,20 @@ def test_build_ytdlp_download_opts_merging():
     opts_ao = build_ytdlp_download_opts("task-456", req_ao, lambda d: None)
     assert opts_ao["format"] == "140"
     assert "merge_output_format" not in opts_ao
+
+def test_parse_format_item_single_stream_platform():
+    # Verify extraction on single-stream websites (Instagram Reels, TikTok, Twitter/X, SoundCloud) where format_id is omitted
+    fmt_single = {
+        "vcodec": "h264",
+        "acodec": "aac",
+        "height": 720,
+        "filesize_approx": 15728640 # 15 MB
+    }
+    item = parse_format_item(fmt_single, 30, "https://www.tiktok.com/@user/video/123456789")
+    assert item is not None
+    assert item.format_id == "best"
+    assert item.format_type == "Video + Audio"
+    assert item.resolution == "720p (HD)"
+    assert item.filesize_str == "15.0 MB"
+    assert item.command == 'yt-dlp -f "best" "https://www.tiktok.com/@user/video/123456789"'
+
