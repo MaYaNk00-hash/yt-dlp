@@ -131,12 +131,6 @@ async def analyze_url(url: str) -> VideoAnalysisResponse:
         "skip_download": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web", "tv", "android", "ios"]
-            }
-        },
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     }
 
     loop = asyncio.get_running_loop()
@@ -303,11 +297,6 @@ def build_ytdlp_download_opts(task_id: str, request: DownloadRequest, progress_c
         "nopagereaders": True,
         "geo_bypass": True,
         "nocheckcertificate": True,
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["web", "tv", "android", "ios"]
-            }
-        },
     }
 
     if request.format_type == "Video Only":
