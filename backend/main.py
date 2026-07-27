@@ -78,6 +78,13 @@ async def fetch_downloaded_file(task_id: str, filename: str):
         media_type="application/octet-stream"
     )
 
-# Guarantee frontend static directory exists before mounting
-FRONTEND_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure downloads folder exists on server startup without throwing errors in read-only containers
+try:
+    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Notice: Unable to initialize downloads directory during container startup: {e}")
+
+# Mount static files and interface
+app.mount("/css", StaticFiles(directory=str(FRONTEND_DIR / "css")), name="css")
+app.mount("/js", StaticFiles(directory=str(FRONTEND_DIR / "js")), name="js")
 app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")

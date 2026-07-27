@@ -5,16 +5,19 @@ from pathlib import Path
 # Project directory paths
 BASE_DIR = Path(__file__).parent.parent.resolve()
 
-# In Vercel / serverless deployments (read-only root filesystem), safely route downloads to ephemeral /tmp
-if os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+# In Vercel / serverless deployments or read-only filesystems, safely route downloads to ephemeral /tmp
+if os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or not os.access(BASE_DIR, os.W_OK):
     DOWNLOADS_DIR = Path("/tmp/downloads")
 else:
     DOWNLOADS_DIR = BASE_DIR / "downloads"
 
 FRONTEND_DIR = BASE_DIR / "frontend"
 
-# Ensure downloads directory exists
-DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure downloads directory exists safely without throwing permission exceptions
+try:
+    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception as e:
+    print(f"Notice: Could not automatically create downloads directory: {e}")
 
 # Application Settings
 APP_TITLE = "yt-dlp Frontend Server"
