@@ -1,0 +1,34 @@
+# Python Virtual Environments & Packages
+venv/
+env/
+.env
+.venv/
+
+# Application Runtime Downloads
+downloads/
+*.mp4
+*.webm
+*.mkv
+*.m4a
+*.mp3
+*.opus
+*.part
+*.ytdl
+*.temp
+*.f000
+*.f001
+
+# Python Caches & Testing
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor & System Files
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
