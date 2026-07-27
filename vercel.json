@@ -1,8 +1,9 @@
 {
   "rewrites": [
     { "source": "/api/(.*)", "destination": "backend/main.py" },
-    { "source": "/css/(.*)", "destination": "frontend/css/$1" },
-    { "source": "/js/(.*)", "destination": "frontend/js/$1" },
-    { "source": "/(.*)", "destination": "backend/main.py" }
+    { "source": "/css/(.*)", "destination": "/frontend/css/$1" },
+    { "source": "/js/(.*)", "destination": "/frontend/js/$1" },
+    { "source": "/", "destination": "/frontend/index.html" },
+    { "source": "/(.*)", "destination": "/frontend/$1" }
   ]
 }
